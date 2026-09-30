@@ -191,3 +191,4 @@ unchanged. Do not permit clients to choose a weaker delivery channel at login.
 
 Reference: [Interakt Authentication templates](https://www.interakt.shop/resource-center/send-whatsapp-authentication-template/).
 # login_security
+# login_security
