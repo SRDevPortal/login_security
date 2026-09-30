@@ -1,0 +1,20 @@
+[project]
+name = "login_security"
+version = "0.1.0"
+description = "Channel-independent staff login verification for Frappe"
+requires-python = ">=3.10"
+authors = [{ name = "Login Security Contributors" }]
+readme = "README.md"
+license = { text = "MIT" }
+dependencies = []
+
+[build-system]
+requires = ["flit_core>=3.4,<4"]
+build-backend = "flit_core.buildapi"
+
+[tool.bench.frappe-dependencies]
+frappe = ">=15.0.0,<16.0.0"
+
+[tool.ruff]
+line-length = 110
+

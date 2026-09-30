@@ -1,0 +1,48 @@
+{
+  "doctype": "DocType",
+  "name": "Login Security Event",
+  "module": "Login Security",
+  "engine": "InnoDB",
+  "autoname": "hash",
+  "fields": [
+    {
+      "fieldname": "user",
+      "fieldtype": "Link",
+      "label": "User",
+      "options": "User",
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "event_type",
+      "fieldtype": "Data",
+      "label": "Event",
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "outcome",
+      "fieldtype": "Data",
+      "label": "Outcome",
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "challenge_reference",
+      "fieldtype": "Data",
+      "label": "Challenge Reference"
+    }
+  ],
+  "permissions": [
+    {
+      "role": "System Manager",
+      "read": 1
+    }
+  ],
+  "sort_field": "creation",
+  "sort_order": "DESC",
+  "field_order": [
+    "user",
+    "event_type",
+    "outcome",
+    "challenge_reference"
+  ]
+}
+

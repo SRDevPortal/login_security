@@ -1,0 +1,66 @@
+{
+  "doctype": "DocType",
+  "name": "Login Security Enrollment",
+  "module": "Login Security",
+  "engine": "InnoDB",
+  "autoname": "field:user",
+  "fields": [
+    {
+      "fieldname": "user",
+      "fieldtype": "Link",
+      "label": "User",
+      "options": "User",
+      "reqd": 1,
+      "unique": 1
+    },
+    {
+      "fieldname": "phone",
+      "fieldtype": "Data",
+      "label": "Verified Phone",
+      "reqd": 1,
+      "unique": 1
+    },
+    {
+      "fieldname": "enabled",
+      "fieldtype": "Check",
+      "label": "Enabled",
+      "default": "1"
+    },
+    {
+      "fieldname": "verified_at",
+      "fieldtype": "Datetime",
+      "label": "Verified At",
+      "read_only": 1
+    },
+    {
+      "fieldname": "verified_by",
+      "fieldtype": "Link",
+      "label": "Enrollment Operator",
+      "options": "User",
+      "read_only": 1
+    },
+    {
+      "fieldname": "recovery_hashes",
+      "fieldtype": "Long Text",
+      "label": "Recovery Digests",
+      "hidden": 1,
+      "permlevel": 1,
+      "read_only": 1
+    }
+  ],
+  "permissions": [
+    {
+      "role": "System Manager",
+      "read": 1
+    }
+  ],
+  "field_order": [
+    "user",
+    "phone",
+    "enabled",
+    "verified_at",
+    "verified_by",
+    "recovery_hashes"
+  ]
+}
+

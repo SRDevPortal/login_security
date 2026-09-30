@@ -1,0 +1,57 @@
+/* Scoped to the OTP panel; native login and Desk styles remain independent. */
+.login-security {
+  box-sizing: border-box;
+  width: 100%;
+  padding: clamp(28px, 7vh, 76px) 16px 40px;
+  color: #182b35;
+  font-family: var(--font-stack, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif);
+}
+.login-security *, .login-security *::before, .login-security *::after { box-sizing: border-box; }
+.login-security .login-security-card {
+  width: 100%; max-width: 448px; margin: 0 auto; padding: 36px;
+  background: #fff; border: 1px solid #e2e8ea; border-radius: 20px;
+  box-shadow: 0 12px 36px rgb(24 43 53 / 7%);
+}
+.login-security .login-security-eyebrow {
+  color: #087b70; font-size: 11px; font-weight: 700; letter-spacing: .14em;
+  text-align: center; margin-bottom: 14px;
+}
+.login-security h2 { font-size: 28px; font-weight: 650; line-height: 1.25; text-align: center; margin: 0 0 12px; letter-spacing: -.6px; }
+.login-security .login-security-intro { text-align: center; font-size: 14px; line-height: 1.6; color: #596872; margin: 0 0 14px; }
+.login-security .login-security-destination {
+  width: fit-content; max-width: 100%; margin: 0 auto 28px; padding: 7px 13px;
+  border-radius: 8px; background: #edf8f5; color: #196c61; font-size: 13px; font-weight: 600;
+}
+.login-security label { display: block; font-size: 13px; font-weight: 600; margin: 0 0 9px; }
+.login-security #login-security-code {
+  display: block; width: 100%; height: 60px; padding: 12px 16px;
+  border: 1px solid #b9c7ce; border-radius: 10px; background: #fff;
+  color: #182b35; text-align: center; font: 600 26px/1.2 ui-monospace, monospace;
+  letter-spacing: .3em; box-shadow: none;
+}
+.login-security #login-security-code::placeholder { color: #87959e; opacity: .7; }
+.login-security #login-security-code:focus { border-color: #008b7e; outline: 3px solid rgb(0 139 126 / 16%); outline-offset: 2px; }
+.login-security.is-recovery #login-security-code { font-size: 14px; letter-spacing: .02em; text-align: left; }
+.login-security [data-status] { font-size: 13px; color: #596872; line-height: 1.5; margin: 12px 0 8px; overflow-wrap: anywhere; }
+.login-security [data-status].is-error { color: #a4262c; background: #fff1f0; border-radius: 8px; padding: 10px 12px; }
+.login-security [data-timer] { color: #596872; font-size: 12px; font-variant-numeric: tabular-nums; margin: 0 0 22px; }
+.login-security button { font-family: inherit; cursor: pointer; }
+.login-security button[type="submit"] {
+  display: block; width: 100%; min-height: 46px; border: 1px solid #008577;
+  border-radius: 10px; background: #008577; color: #fff; font-size: 14px; font-weight: 600; padding: 12px 16px;
+}
+.login-security button[type="submit"]:hover:not(:disabled) { background: #006e62; }
+.login-security button:focus-visible { outline: 3px solid #63bdb2; outline-offset: 3px; }
+.login-security button:disabled { cursor: default; }
+.login-security button[type="submit"]:disabled { background: #5e7773; border-color: #5e7773; }
+.login-security .login-security-resend { display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 3px 8px; margin-top: 12px; font-size: 12px; color: #596872; }
+.login-security [data-resend], .login-security-footer button { border: 0; background: transparent; min-height: 44px; padding: 8px 4px; font-size: 12px; color: #08776d; font-weight: 600; }
+.login-security [data-resend]:disabled { color: #677780; font-weight: 400; }
+.login-security .login-security-footer { display: flex; justify-content: space-between; gap: 12px; border-top: 1px solid #e8edef; margin-top: 16px; padding-top: 12px; }
+.login-security [data-restart] { color: #596872; font-weight: 400; }
+@media (max-width: 480px) {
+  .login-security { padding: 24px 12px; }
+  .login-security .login-security-card { padding: 28px 22px 20px; border-radius: 16px; }
+  .login-security h2 { font-size: 25px; }
+  .login-security .login-security-footer { gap: 6px; flex-wrap: wrap; }
+}

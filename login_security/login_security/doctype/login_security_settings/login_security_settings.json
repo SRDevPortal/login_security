@@ -1,0 +1,195 @@
+{
+  "doctype": "DocType",
+  "name": "Login Security Settings",
+  "module": "Login Security",
+  "engine": "InnoDB",
+  "issingle": 1,
+  "fields": [
+    {
+      "fieldname": "enabled",
+      "fieldtype": "Check",
+      "label": "Activate Login Security for this Site",
+      "default": "0"
+    },
+    {
+      "fieldname": "scope_section",
+      "fieldtype": "Section Break",
+      "label": "Legacy Staff Coverage",
+      "hidden": 1
+    },
+    {
+      "fieldname": "all_staff",
+      "fieldtype": "Check",
+      "label": "All Staff",
+      "hidden": 1,
+      "read_only": 1,
+      "default": "0"
+    },
+    {
+      "fieldname": "users",
+      "fieldtype": "Table",
+      "label": "Pilot Users",
+      "hidden": 1,
+      "read_only": 1,
+      "options": "Login Security User"
+    },
+    {
+      "fieldname": "roles",
+      "fieldtype": "Table",
+      "label": "Required Roles",
+      "hidden": 1,
+      "read_only": 1,
+      "options": "Login Security Role"
+    },
+    {
+      "fieldname": "coverage_version",
+      "fieldtype": "Int",
+      "label": "Coverage Version",
+      "hidden": 1,
+      "read_only": 1,
+      "default": "0"
+    },
+    {
+      "fieldname": "coverage_migration_snapshot",
+      "fieldtype": "Long Text",
+      "label": "Coverage Migration Snapshot",
+      "hidden": 1,
+      "read_only": 1
+    },
+    {
+      "fieldname": "delivery_section",
+      "fieldtype": "Section Break",
+      "label": "Delivery"
+    },
+    {
+      "fieldname": "delivery_channel",
+      "fieldtype": "Select",
+      "label": "Delivery Channel",
+      "options": "WhatsApp",
+      "default": "WhatsApp",
+      "reqd": 1
+    },
+    {
+      "fieldname": "provider",
+      "fieldtype": "Select",
+      "label": "Provider",
+      "options": "Interakt",
+      "default": "Interakt",
+      "reqd": 1
+    },
+    {
+      "fieldname": "channel_account",
+      "fieldtype": "Link",
+      "label": "Channel Account",
+      "options": "Chat Channel Account"
+    },
+    {
+      "fieldname": "template_name",
+      "fieldtype": "Data",
+      "label": "Authentication Template"
+    },
+    {
+      "fieldname": "template_language",
+      "fieldtype": "Data",
+      "label": "Template Language",
+      "default": "en"
+    },
+    {
+      "fieldname": "template_approved",
+      "fieldtype": "Check",
+      "label": "Authentication Template Approval Confirmed",
+      "default": "0"
+    },
+    {
+      "fieldname": "limits_section",
+      "fieldtype": "Section Break",
+      "label": "Limits"
+    },
+    {
+      "fieldname": "code_ttl",
+      "fieldtype": "Int",
+      "label": "Code Validity (seconds)",
+      "default": "300",
+      "reqd": 1
+    },
+    {
+      "fieldname": "resend_cooldown",
+      "fieldtype": "Int",
+      "label": "Resend Cooldown (seconds)",
+      "default": "60",
+      "reqd": 1
+    },
+    {
+      "fieldname": "max_attempts",
+      "fieldtype": "Int",
+      "label": "Attempts Per Challenge",
+      "default": "5",
+      "reqd": 1
+    },
+    {
+      "fieldname": "send_limit",
+      "fieldtype": "Int",
+      "label": "Sends Per User/Number Per Hour",
+      "default": "5",
+      "reqd": 1
+    },
+    {
+      "fieldname": "audit_retention_days",
+      "fieldtype": "Int",
+      "label": "Audit Retention (days)",
+      "default": "30",
+      "reqd": 1
+    },
+    {
+      "fieldname": "rollout_section",
+      "fieldtype": "Section Break",
+      "label": "Activation Checklist"
+    },
+    {
+      "fieldname": "emergency_access_acknowledged",
+      "fieldtype": "Check",
+      "label": "Restricted Administrator Emergency Access Established",
+      "description": "Administrator retains native login. Restrict access operationally before activation.",
+      "default": "0"
+    },
+    {
+      "fieldname": "rollout_checks_completed",
+      "fieldtype": "Check",
+      "label": "Enrollment, Recovery, Alternate Routes and Session Revocation Checked",
+      "description": "Existing staff sessions must be revoked during activation. Review README before enabling.",
+      "default": "0"
+    }
+  ],
+  "permissions": [
+    {
+      "role": "System Manager",
+      "read": 1,
+      "write": 1
+    }
+  ],
+  "field_order": [
+    "enabled",
+    "scope_section",
+    "all_staff",
+    "users",
+    "roles",
+    "coverage_version",
+    "coverage_migration_snapshot",
+    "delivery_section",
+    "delivery_channel",
+    "provider",
+    "channel_account",
+    "template_name",
+    "template_language",
+    "template_approved",
+    "limits_section",
+    "code_ttl",
+    "resend_cooldown",
+    "max_attempts",
+    "send_limit",
+    "audit_retention_days",
+    "rollout_section",
+    "emergency_access_acknowledged",
+    "rollout_checks_completed"
+  ]
+}

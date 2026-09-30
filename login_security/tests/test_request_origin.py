@@ -1,0 +1,79 @@
+import unittest
+
+import frappe
+from werkzeug.test import EnvironBuilder
+from werkzeug.wrappers import Request
+
+from login_security.runtime import LoginSecurityError, check_request, request_scheme
+
+
+class RequestOriginTests(unittest.TestCase):
+    def setUp(self):
+        self.old_conf = getattr(frappe.local, "conf", None)
+        self.old_request = getattr(frappe.local, "request", None)
+        frappe.local.conf = frappe._dict(host_name="https://public.example", developer_mode=0)
+
+    def tearDown(self):
+        frappe.local.conf = self.old_conf
+        frappe.local.request = self.old_request
+
+    def request(
+        self,
+        origin="https://public.example",
+        peer="127.0.0.1",
+        host="public.example",
+        forwarded="https",
+        scheme="http",
+        forwarded_host=None,
+    ):
+        headers = {"Origin": origin, "X-Login-Security": "1", "X-Forwarded-Proto": forwarded}
+        if forwarded_host is not None:
+            headers["X-Forwarded-Host"] = forwarded_host
+        frappe.local.request = Request(
+            EnvironBuilder(
+                method="POST",
+                base_url=f"{scheme}://{host}",
+                headers=headers,
+                environ_overrides={"REMOTE_ADDR": peer},
+            ).get_environ()
+        )
+
+    def test_configured_https_through_loopback_proxy(self):
+        self.request()
+        check_request()
+        self.assertEqual(request_scheme(), "https")
+
+    def test_cross_origin_still_rejected(self):
+        self.request(origin="https://attacker.example")
+        with self.assertRaises(LoginSecurityError):
+            check_request()
+
+    def test_untrusted_peer_cannot_claim_https(self):
+        self.request(peer="192.0.2.5")
+        self.assertEqual(request_scheme(), "http")
+        with self.assertRaises(LoginSecurityError):
+            check_request()
+
+    def test_unconfigured_host_and_spoofed_forwarded_host_rejected(self):
+        for args in (
+            {"host": "other.example", "origin": "https://other.example"},
+            {"forwarded_host": "attacker.example"},
+            {"forwarded": "https,http"},
+        ):
+            with self.subTest(args=args):
+                self.request(**args)
+                with self.assertRaises(LoginSecurityError):
+                    check_request()
+
+    def test_direct_https_and_local_development_still_work(self):
+        self.request(scheme="https", peer="192.0.2.5")
+        check_request()
+        frappe.local.conf.developer_mode = 1
+        self.request(host="localhost", origin="http://localhost", forwarded="http")
+        check_request()
+
+    def test_plain_http_public_host_still_rejected(self):
+        self.request(origin="http://public.example", forwarded="http")
+        with self.assertRaises(LoginSecurityError) as error:
+            check_request()
+        self.assertEqual(error.exception.code, "https")
