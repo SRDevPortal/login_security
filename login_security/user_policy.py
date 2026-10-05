@@ -127,6 +127,10 @@ def status(user):
         "verified": verified,
         "site_active": bool(config.enabled),
         "coverage_version": int(config.get("coverage_version") or 0),
-        "destination": "WhatsApp ending " + row.phone[-4:] if row else None,
+        "destination": (
+            "WhatsApp ending " + (row.phone if row else comparable_phone(doc.mobile_no))[-4:]
+            if (row and row.phone) or doc.mobile_no
+            else None
+        ),
         "verified_at": str(row.verified_at) if row and row.verified_at else None,
     }

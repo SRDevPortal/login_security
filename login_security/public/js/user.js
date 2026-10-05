@@ -21,9 +21,9 @@ frappe.ui.form.on("User", {
     frm.set_df_property("mobile_no", "read_only", state.enrolled || !!frm.doc.login_security_enabled);
     if (!state.can_manage || !state.supported) return;
     if (!state.verified) {
-      frm.add_custom_button(__("Verify Mobile No."), () => login_security_enroll(frm, false), __("Login Security"));
+      frm.add_custom_button(__("Verify Mobile No."), () => login_security_enroll(frm, false, state), __("Login Security"));
     }
-    frm.add_custom_button(__("Change Verified Number"), () => login_security_enroll(frm, true), __("Login Security"));
+    frm.add_custom_button(__("Change Verified Number"), () => login_security_enroll(frm, true, state), __("Login Security"));
   },
 });
 
@@ -88,11 +88,11 @@ async function login_security_post(method, args) {
   return result;
 }
 
-function login_security_enroll(frm, changing) {
+function login_security_enroll(frm, changing, state) {
   if (frm.is_dirty()) return frappe.msgprint(__("Save the User before verifying their number."));
   const fields = [{ fieldname: "password", label: __("Your administrator password"), fieldtype: "Password", reqd: 1 }];
   if (changing) fields.unshift({ fieldname: "new_phone", label: __("New Mobile No. with country code"), fieldtype: "Data", reqd: 1 });
-  else fields.unshift({ fieldname: "destination", label: __("Saved Mobile No."), fieldtype: "Data", read_only: 1, default: frm.doc.mobile_no });
+  else fields.unshift({ fieldname: "destination", label: __("Saved Mobile No."), fieldtype: "Data", read_only: 1, default: state?.destination || __("Saved mobile number") });
   const dialog = new frappe.ui.Dialog({ title: __(changing ? "Change Verified Number" : "Verify Mobile No."), fields,
     primary_action_label: __("Send verification code"),
     async primary_action(values) {

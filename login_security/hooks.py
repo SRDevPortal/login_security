@@ -1,10 +1,13 @@
+from pathlib import Path as _Path
+
 app_name = "login_security"
 app_title = "Login Security"
 app_publisher = "Login Security Contributors"
 app_description = "Staff login verification with replaceable delivery channels"
 app_email = ""
 app_license = "mit"
-required_apps = ["frappe", "wa_chat_hub"]
+# Resolve the sibling app locally: Frappe v15 looks up bare custom names on GitHub.
+required_apps = ["frappe", str(_Path(__file__).resolve().parents[2] / "wa_chat_hub")]
 
 web_include_js = ["/assets/login_security/js/login.js?v=20260929-4"]
 on_login = "login_security.enforcement.require_verification"
@@ -20,3 +23,6 @@ doc_events = {
     }
 }
 scheduler_events = {"daily": ["login_security.audit.remove_expired_events"]}
+
+# Authenticate first, then protect raw verified-phone enrollment HTTP reads.
+auth_hooks = ["login_security.document_privacy.guard_request"]

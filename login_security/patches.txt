@@ -1,2 +1,4 @@
+[pre_model_sync]
+
 [post_model_sync]
 login_security.patches.v0_2.migrate_user_verification

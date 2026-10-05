@@ -28,6 +28,10 @@ WhatsApp through Interakt. SMS is a future adapter, not an implemented feature.
 
 From a bench with `frappe` and the matching `wa_chat_hub` code installed:
 
+The WhatsApp dependency resolves from the sibling `apps/wa_chat_hub` directory.
+This avoids Frappe v15 trying to find the private/custom app under the public
+`frappe` or `erpnext` GitHub organizations during installation.
+
 ```sh
 ./env/bin/pip install -e apps/login_security --no-deps
 # Register login_security in sites/apps.txt once if not already registered.
@@ -193,3 +197,11 @@ Reference: [Interakt Authentication templates](https://www.interakt.shop/resourc
 # login_security
 # login_security
 # login_security
+
+## Customer number privacy
+
+When Customer Number Privacy is enabled, restricted users see only the verified
+phone suffix in Login Security workflows. Raw Login Security Enrollment records
+cannot be opened, printed, exported, or queried through generic HTTP APIs without
+full-number visibility. OTP delivery, enrollment verification, recovery codes,
+and internal policy checks continue to use the original phone value.
