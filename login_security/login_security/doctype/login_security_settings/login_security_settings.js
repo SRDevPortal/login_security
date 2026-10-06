@@ -2,6 +2,19 @@
   refresh(frm) {
     frm.set_intro(__("Manage Enable Login Verification on each User. Codes go to that User's verified Mobile No. These settings control the shared sender, limits and site activation."));
     frm.add_custom_button(__("Open Users"), () => frappe.set_route("List", "User"));
+    if (frappe.session.user === "Administrator" || frappe.user_roles.includes("System Manager")) {
+      frm.add_custom_button(__("Detect Current Address"), () => {
+        const origin = window.location.origin;
+        if (window.location.protocol !== "https:") {
+          return frappe.msgprint(__("Open these settings at the public HTTPS address before detecting it."));
+        }
+        frappe.confirm(
+          __("Use {0} as the Public Login URL? Review the field and Save to apply it.",
+            [frappe.utils.escape_html(origin)]),
+          () => frm.set_value("public_login_url", origin)
+        );
+      });
+    }
     if (frm.doc.coverage_version >= 2) return;
     frm.add_custom_button(__("Review Coverage Migration"), async () => {
       if (frm.is_dirty()) return frappe.msgprint(__("Save settings before reviewing migration."));

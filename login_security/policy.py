@@ -109,6 +109,12 @@ def fingerprint(user, config=None):
 
 
 def validate_settings(doc):
+    from login_security.runtime import normalize_public_login_url
+
+    try:
+        doc.public_login_url = normalize_public_login_url(doc.get("public_login_url"))
+    except LoginSecurityError as exc:
+        frappe.throw(exc.message)
     previous = doc.get_doc_before_save()
     if previous:
         for field in ("coverage_version", "coverage_migration_snapshot"):

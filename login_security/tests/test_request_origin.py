@@ -1,4 +1,5 @@
 import unittest
+from unittest.mock import patch
 
 import frappe
 from werkzeug.test import EnvironBuilder
@@ -9,11 +10,17 @@ from login_security.runtime import LoginSecurityError, check_request, request_sc
 
 class RequestOriginTests(unittest.TestCase):
     def setUp(self):
+        url_patch = patch("login_security.runtime.configured_public_url", return_value="https://public.example")
+        self.url_reader = url_patch.start()
+        self.addCleanup(url_patch.stop)
+        self.old_site = getattr(frappe.local, "site", None)
+        frappe.local.site = "sriaas.local"
         self.old_conf = getattr(frappe.local, "conf", None)
         self.old_request = getattr(frappe.local, "request", None)
         frappe.local.conf = frappe._dict(host_name="https://public.example", developer_mode=0)
 
     def tearDown(self):
+        frappe.local.site = self.old_site
         frappe.local.conf = self.old_conf
         frappe.local.request = self.old_request
 
@@ -77,3 +84,34 @@ class RequestOriginTests(unittest.TestCase):
         with self.assertRaises(LoginSecurityError) as error:
             check_request()
         self.assertEqual(error.exception.code, "https")
+
+    def test_site_host_rewrite_with_configured_forwarded_host(self):
+        self.request(host="sriaas.local", forwarded_host="public.example")
+        check_request()
+        self.assertEqual(request_scheme(), "https")
+
+    def test_site_host_rewrite_rejects_missing_spoofed_or_untrusted_headers(self):
+        for args in ({}, {"forwarded_host": "attacker.example"},
+                     {"forwarded_host": "public.example", "peer": "192.0.2.5"},
+                     {"forwarded_host": "public.example", "origin": "https://attacker.example"},
+                     {"forwarded_host": "public.example", "forwarded": "https,http"}):
+            with self.subTest(args=args):
+                self.request(host="sriaas.local", **args)
+                with self.assertRaises(LoginSecurityError):
+                    check_request()
+
+    def test_override_accepts_new_tunnel_and_rejects_old_tunnel(self):
+        self.url_reader.return_value = "https://new.example"
+        self.request(host="sriaas.local", origin="https://new.example", forwarded_host="new.example")
+        check_request()
+        self.request(host="sriaas.local", forwarded_host="public.example")
+        with self.assertRaises(LoginSecurityError):
+            check_request()
+
+    def test_override_does_not_trust_remote_proxy_or_foreign_origin(self):
+        self.url_reader.return_value = "https://new.example"
+        for args in ({"peer": "192.0.2.5", "origin": "https://new.example"},
+                     {"origin": "https://attacker.example"}):
+            self.request(host="sriaas.local", forwarded_host="new.example", **args)
+            with self.assertRaises(LoginSecurityError):
+                check_request()

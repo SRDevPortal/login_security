@@ -12,6 +12,12 @@
       "default": "0"
     },
     {
+      "fieldname": "public_login_url",
+      "fieldtype": "Data",
+      "label": "Public Login URL",
+      "description": "Optional HTTPS origin for Login Security. Leave blank to use site_config host_name. Use Detect Current Address, review, then Save."
+    },
+    {
       "fieldname": "scope_section",
       "fieldtype": "Section Break",
       "label": "Legacy Staff Coverage",
@@ -169,6 +175,7 @@
   ],
   "field_order": [
     "enabled",
+    "public_login_url",
     "scope_section",
     "all_staff",
     "users",
