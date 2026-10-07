@@ -115,3 +115,58 @@ class RequestOriginTests(unittest.TestCase):
             self.request(host="sriaas.local", forwarded_host="new.example", **args)
             with self.assertRaises(LoginSecurityError):
                 check_request()
+
+    def test_upstream_https_opt_in_handles_internal_http_and_secure_cookie_scheme(self):
+        frappe.local.conf.login_security_https_enforced_upstream = 1
+        for proto in ("http", "https", None):
+            with self.subTest(proto=proto):
+                self.request(forwarded="http")
+                headers = dict(frappe.local.request.headers)
+                headers.pop("X-Forwarded-Proto", None)
+                if proto is not None:
+                    headers["X-Forwarded-Proto"] = proto
+                frappe.local.request = Request(EnvironBuilder(
+                    method="POST", base_url="http://public.example", headers=headers,
+                    environ_overrides={"REMOTE_ADDR": "127.0.0.1"},
+                ).get_environ())
+                check_request()
+                self.assertEqual(request_scheme(), "https")
+
+    def test_upstream_https_opt_in_preserves_origin_host_and_peer_checks(self):
+        frappe.local.conf.login_security_https_enforced_upstream = 1
+        for args in (
+            {"peer": "172.19.0.2"},
+            {"peer": "invalid"},
+            {"origin": "https://attacker.example"},
+            {"origin": "http://public.example"},
+            {"host": "attacker.example", "origin": "https://attacker.example"},
+            {"forwarded_host": "attacker.example"},
+            {"forwarded": "https,http"},
+            {"forwarded": "ftp"},
+            {"host": "sriaas.local"},
+        ):
+            with self.subTest(args=args):
+                self.request(**dict({"forwarded": "http"}, **args))
+                with self.assertRaises(LoginSecurityError):
+                    check_request()
+
+    def test_upstream_https_opt_in_allows_bound_site_host_rewrite(self):
+        frappe.local.conf.login_security_https_enforced_upstream = 1
+        self.request(host="sriaas.local", forwarded="http", forwarded_host="public.example")
+        check_request()
+        self.assertEqual(request_scheme(), "https")
+
+    def test_upstream_https_opt_in_requires_explicit_flag_and_https_configuration(self):
+        for flag in (None, 0, "false", "true", "1"):
+            with self.subTest(flag=flag):
+                frappe.local.conf.login_security_https_enforced_upstream = flag
+                self.request(forwarded="http")
+                with self.assertRaises(LoginSecurityError):
+                    check_request()
+        frappe.local.conf.login_security_https_enforced_upstream = 1
+        for url in ("", "http://public.example"):
+            with self.subTest(url=url):
+                self.url_reader.return_value = url
+                self.request(forwarded="http")
+                with self.assertRaises(LoginSecurityError):
+                    check_request()

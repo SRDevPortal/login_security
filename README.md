@@ -353,6 +353,35 @@ forwarded host matching the configured HTTPS address is required.
 Both login and enrollment binding cookies remain Secure on this path. Browser
 Origin/Referer must still match the public site; cross-origin requests are rejected.
 
+### Managed hosting with an internal HTTP proxy
+
+If the public entry point enforces HTTPS but the container Nginx overwrites
+`X-Forwarded-Proto` with its internal `http` scheme, an administrator can explicitly
+assert that deployment contract using the server-only site setting:
+
+```sh
+bench --site <site> set-config login_security_https_enforced_upstream 1 --parse
+```
+
+Set Public Login URL to the exact public HTTPS origin first. Use this option only
+when the public ingress enforces HTTPS and direct public access to container Nginx
+and Gunicorn is prevented. This setting cannot prove TLS at the ingress; the
+operator must verify that infrastructure guarantee. Prefer correcting proxy headers
+when hosting permits it. Do not use this option for publicly reachable HTTP sites.
+
+The option defaults off. It only recognizes requests from a loopback connection
+with a matching public Host (or the site Host plus an exact forwarded public Host).
+Browser Origin/Referer must still match the public HTTPS origin. Remote peers,
+foreign hosts and malformed forwarded-protocol lists are rejected. Login and
+enrollment binding cookies remain Secure. Existing forwarded-HTTPS behavior stays
+available without the opt-in. Container/private proxy peers remain unsupported.
+
+Deploy the updated Python code and restart managed web processes using the hosting
+platform's deployment/restart mechanism. No DocType migration or frontend rebuild
+is required for this option. Test enrollment, OTP login and recovery on staging.
+To remove the override, set the option to `0` with `--parse`; requests then require
+normal HTTPS recognition again. Never rotate the site encryption key for this fix.
+
 If enforcement is disabled or a user is outside coverage, the browser delegates
 to the native login handler, preserving existing native 2FA/reset behavior.
 

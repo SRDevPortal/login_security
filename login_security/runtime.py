@@ -64,7 +64,7 @@ def configured_public_url():
 
 
 def request_origin():
-    """Resolve a configured HTTPS origin behind a loopback proxy, including site routing."""
+    """Resolve HTTPS through a loopback proxy with an explicit upstream TLS contract."""
     request = frappe.local.request
     if request.scheme == "https":
         return "https", request.host
@@ -76,12 +76,20 @@ def request_origin():
     # Frappe's local proxy can rewrite Host to the selected site name. In that
     # case require an explicit forwarded host matching the configured public URL.
     site_host = getattr(frappe.local, "site", None)
+    forwarded_proto = request.headers.get("X-Forwarded-Proto")
+    # Managed hosting may replace the external scheme with its internal HTTP hop.
+    # This server-only opt-in asserts HTTPS is enforced before the loopback proxy.
+    # It never trusts a remote peer, a different host or malformed protocol lists.
+    upstream_https = (
+        frappe.conf.get("login_security_https_enforced_upstream") in (True, 1)
+        and forwarded_proto in (None, "http", "https")
+    )
     if (
         loopback
         and configured.scheme == "https"
         and configured.netloc
         and request.host in (configured.netloc, site_host)
-        and request.headers.get("X-Forwarded-Proto") == "https"
+        and (forwarded_proto == "https" or upstream_https)
         and request.headers.get("X-Forwarded-Host", request.host) == configured.netloc
     ):
         return "https", configured.netloc
