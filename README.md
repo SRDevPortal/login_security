@@ -518,3 +518,12 @@ loaded HTTPS override, configured/resolved origins and selected request metadata
 No passwords, tokens, cookies, phone numbers, Referer paths or query strings are
 included. It is deliberately accessible even when origin recognition fails;
 normal authentication, operator permissions and Frappe CSRF handling still apply.
+
+
+The v2 request diagnostic retains the raw Host and adds `normalized_proxy_host`.
+Identical comma-separated public Host values from a loopback proxy are collapsed
+only when every element equals the configured public host. Mixed hosts, empty
+entries, duplicate internal site names and remote peers remain rejected. The
+HTTPS override is still required when the proxy forwards `http`. Fix duplicate
+Nginx Host directives when possible; this compatibility handling affects only
+Login Security origin checks, not Frappe routing or other apps.

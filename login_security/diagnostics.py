@@ -35,7 +35,7 @@ def request_report():
     from urllib.parse import urlsplit
 
     from login_security.runtime import (
-        LoginSecurityError, check_request, configured_public_url, request_origin,
+        LoginSecurityError, check_request, configured_public_url, request_origin, proxy_request_host,
     )
     from login_security.user_policy import is_operator
 
@@ -61,7 +61,7 @@ def request_report():
     except ValueError:
         loopback = False
     report = {
-        "diagnostic_version": "origin-report-v1",
+        "diagnostic_version": "origin-report-v2",
         "site": frappe.local.site,
         "https_enforced_upstream": frappe.conf.get("login_security_https_enforced_upstream") in (True, 1),
         "request": {
@@ -77,6 +77,8 @@ def request_report():
     }
     try:
         configured = urlsplit(configured_public_url())
+        proxy_host = proxy_request_host(configured.netloc, loopback)
+        report["normalized_proxy_host"] = proxy_host[:256]
         scheme, host = request_origin()
         proto = request.headers.get("X-Forwarded-Proto")
         report["configured_origin"] = origin_only(configured.geturl())
@@ -84,8 +86,8 @@ def request_report():
         report["checks"] = {
             "configured_https": configured.scheme == "https" and bool(configured.netloc),
             "loopback_peer": loopback,
-            "host_matches": request.host in (configured.netloc, frappe.local.site),
-            "forwarded_host_matches": request.headers.get("X-Forwarded-Host", request.host) == configured.netloc,
+            "host_matches": proxy_host in (configured.netloc, frappe.local.site),
+            "forwarded_host_matches": request.headers.get("X-Forwarded-Host", proxy_host) == configured.netloc,
             "protocol_recognized": proto == "https" or (
                 report["https_enforced_upstream"] and proto in (None, "http", "https")
             ),

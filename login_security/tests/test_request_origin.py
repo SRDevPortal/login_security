@@ -170,3 +170,32 @@ class RequestOriginTests(unittest.TestCase):
                 self.request(forwarded="http")
                 with self.assertRaises(LoginSecurityError):
                     check_request()
+
+    def test_identical_public_host_duplicates_from_loopback_are_accepted(self):
+        frappe.local.conf.login_security_https_enforced_upstream = 1
+        for host in ("public.example,public.example", "public.example, public.example"):
+            with self.subTest(host=host):
+                self.request(host=host, forwarded="http")
+                check_request()
+                self.assertEqual(request_scheme(), "https")
+
+    def test_host_duplicate_normalization_rejects_mixed_empty_and_remote_values(self):
+        frappe.local.conf.login_security_https_enforced_upstream = 1
+        for args in (
+            {"host": "public.example,attacker.example"},
+            {"host": "attacker.example,public.example"},
+            {"host": "public.example,"},
+            {"host": "sriaas.local,sriaas.local", "forwarded_host": "public.example"},
+            {"host": "public.example,public.example", "peer": "172.19.0.2"},
+            {"host": "public.example,public.example", "forwarded_host": "attacker.example"},
+            {"host": "public.example,public.example", "origin": "https://attacker.example"},
+        ):
+            with self.subTest(args=args):
+                self.request(**dict({"forwarded": "http"}, **args))
+                with self.assertRaises(LoginSecurityError):
+                    check_request()
+
+    def test_host_duplicates_do_not_bypass_disabled_https_override(self):
+        self.request(host="public.example,public.example", forwarded="http")
+        with self.assertRaises(LoginSecurityError):
+            check_request()

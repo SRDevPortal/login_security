@@ -53,3 +53,15 @@ class DiagnosticsTests(unittest.TestCase):
         with patch("login_security.user_policy.is_operator", return_value=True):
             with self.assertRaises(frappe.PermissionError):
                 request_report()
+
+    def test_report_identifies_normalized_duplicate_public_host(self):
+        frappe.local.conf.login_security_https_enforced_upstream = 1
+        self.request(host="public.example,public.example", forwarded="http")
+        with patch("login_security.user_policy.is_operator", return_value=True):
+            report = request_report()
+        self.assertEqual(report["diagnostic_version"], "origin-report-v2")
+        self.assertEqual(report["request"]["host"], "public.example,public.example")
+        self.assertEqual(report["normalized_proxy_host"], "public.example")
+        self.assertTrue(report["checks"]["host_matches"])
+        self.assertTrue(report["checks"]["forwarded_host_matches"])
+        self.assertTrue(report["validation"]["passed"])
