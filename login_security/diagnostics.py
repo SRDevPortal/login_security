@@ -28,6 +28,78 @@ def inventory():
     }
 
 
+@frappe.whitelist(methods=["POST"])
+def request_report():
+    """Observe the browser request without invoking enrollment or the origin gate."""
+    import ipaddress
+    from urllib.parse import urlsplit
+
+    from login_security.runtime import (
+        LoginSecurityError, check_request, configured_public_url, request_origin,
+    )
+    from login_security.user_policy import is_operator
+
+    if not is_operator():
+        raise frappe.PermissionError
+    request = frappe.local.request
+    if request.method != "POST" or request.headers.get("X-Login-Security") != "1":
+        raise frappe.PermissionError
+
+    def origin_only(value):
+        # Never return Referer paths/queries, URL credentials or arbitrary bodies.
+        try:
+            parsed = urlsplit(value or "")
+            if parsed.username is not None or parsed.password is not None:
+                return "[invalid origin]"
+            return (parsed.scheme + "://" + parsed.netloc)[:256] if parsed.netloc else ""
+        except ValueError:
+            return "[invalid origin]"
+
+    peer = request.environ.get("REMOTE_ADDR", "")
+    try:
+        loopback = ipaddress.ip_address(peer).is_loopback
+    except ValueError:
+        loopback = False
+    report = {
+        "diagnostic_version": "origin-report-v1",
+        "site": frappe.local.site,
+        "https_enforced_upstream": frappe.conf.get("login_security_https_enforced_upstream") in (True, 1),
+        "request": {
+            "scheme": request.scheme,
+            "host": request.host[:256],
+            "origin": origin_only(request.headers.get("Origin")),
+            "referer_origin": origin_only(request.headers.get("Referer")),
+            "connection_peer": peer[:64],
+            "peer_is_loopback": loopback,
+            "forwarded_proto": request.headers.get("X-Forwarded-Proto", "")[:64],
+            "forwarded_host": request.headers.get("X-Forwarded-Host", "")[:256],
+        },
+    }
+    try:
+        configured = urlsplit(configured_public_url())
+        scheme, host = request_origin()
+        proto = request.headers.get("X-Forwarded-Proto")
+        report["configured_origin"] = origin_only(configured.geturl())
+        report["resolved_origin"] = origin_only(scheme + "://" + host)
+        report["checks"] = {
+            "configured_https": configured.scheme == "https" and bool(configured.netloc),
+            "loopback_peer": loopback,
+            "host_matches": request.host in (configured.netloc, frappe.local.site),
+            "forwarded_host_matches": request.headers.get("X-Forwarded-Host", request.host) == configured.netloc,
+            "protocol_recognized": proto == "https" or (
+                report["https_enforced_upstream"] and proto in (None, "http", "https")
+            ),
+            "browser_origin_matches": origin_only(request.headers.get("Origin") or request.headers.get("Referer")) == report["resolved_origin"],
+        }
+        check_request()
+        report["validation"] = {"passed": True, "code": "ok"}
+    except LoginSecurityError as exc:
+        report["validation"] = {"passed": False, "code": exc.code, "message": exc.message}
+    except ValueError:
+        report["validation"] = {"passed": False, "code": "invalid_request_metadata"}
+    return report
+
+
 if __name__ == "__main__":
     import json
     import os

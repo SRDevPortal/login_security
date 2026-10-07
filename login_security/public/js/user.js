@@ -7,6 +7,7 @@ frappe.ui.form.on("User", {
     login_security_mobile_required(frm);
     frm.set_df_property("login_security_enabled", "description",
       "");
+    frm.remove_custom_button(__("Check Login Request"), __("Login Security"));
     frm.remove_custom_button(__("Verify Mobile No."), __("Login Security"));
     frm.remove_custom_button(__("Change Verified Number"), __("Login Security"));
     if (frm.is_new() || !frm.fields_dict.login_security_status) return;
@@ -19,6 +20,9 @@ frappe.ui.form.on("User", {
     frm.set_df_property("login_security_enabled", "read_only",
       !state.can_manage || !state.supported || state.coverage_version < 2);
     frm.set_df_property("mobile_no", "read_only", state.enrolled || !!frm.doc.login_security_enabled);
+    if (state.can_manage) {
+      frm.add_custom_button(__("Check Login Request"), login_security_request_report, __("Login Security"));
+    }
     if (!state.can_manage || !state.supported) return;
     if (!state.verified) {
       frm.add_custom_button(__("Verify Mobile No."), () => login_security_enroll(frm, false, state), __("Login Security"));
@@ -130,4 +134,18 @@ function login_security_enroll(frm, changing, state) {
     },
   });
   dialog.show();
+}
+
+
+async function login_security_request_report() {
+  try {
+    const report = await login_security_post("diagnostics.request_report", {});
+    const dialog = new frappe.ui.Dialog({
+      title: __("Login request diagnostics"),
+      fields: [{ fieldname: "report", fieldtype: "Small Text", read_only: 1,
+        default: JSON.stringify(report, null, 2),
+        description: __("Read-only check. No OTP sent. Copy this report for your administrator.") }],
+    });
+    dialog.show();
+  } catch (error) { frappe.msgprint(error.message); }
 }

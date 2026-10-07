@@ -501,3 +501,20 @@ phone suffix in Login Security workflows. Raw Login Security Enrollment records
 cannot be opened, printed, exported, or queried through generic HTTP APIs without
 full-number visibility. OTP delivery, enrollment verification, recovery codes,
 and internal policy checks continue to use the original phone value.
+
+
+## Browser request diagnostics
+
+After deploying and restarting web processes, rebuild `login_security` assets and
+reload Desk. On a saved User, Administrator/System Manager can select
+**Login Security > Check Login Request**. This sends an authenticated POST through
+the same browser/proxy path as enrollment, with the same Login Security and CSRF
+headers, but never starts enrollment, sends messages or changes settings.
+
+Copy the JSON report: `validation` runs the actual request gate, while `checks`
+shows the proxy recognition conditions. Proxy checks are informational when the
+request already arrives as HTTPS. The report includes a diagnostic version, the
+loaded HTTPS override, configured/resolved origins and selected request metadata.
+No passwords, tokens, cookies, phone numbers, Referer paths or query strings are
+included. It is deliberately accessible even when origin recognition fails;
+normal authentication, operator permissions and Frappe CSRF handling still apply.
