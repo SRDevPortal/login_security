@@ -28,88 +28,25 @@ def store():
     return ChallengeStore(Redis(connection_pool=frappe.cache.connection_pool), frappe.local.site, secret())
 
 
-def normalize_public_login_url(value):
-    """Accept an HTTPS origin only, never credentials, paths or header-like input."""
-    value = (value or "").strip()
-    if not value:
-        return ""
-    try:
-        parsed = urlsplit(value)
-        port = parsed.port
-        hostname = parsed.hostname
-        if (parsed.scheme != "https" or not hostname or parsed.username is not None
-                or parsed.password is not None or parsed.path not in ("", "/")
-                or parsed.query or parsed.fragment or "?" in value or "#" in value
-                or any(c.isspace() or ord(c) < 32 for c in value) or "\\" in value):
-            raise ValueError
-        import re
-        if ":" in hostname:
-            ipaddress.IPv6Address(hostname)
-        elif not all(re.fullmatch(r"[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?", label)
-                     for label in hostname.split(".")):
-            raise ValueError
-        if port is not None and not 1 <= port <= 65535:
-            raise ValueError
-    except (ValueError, TypeError):
-        raise LoginSecurityError("configuration", "Public Login URL must be an HTTPS address without credentials, a path, query or fragment.") from None
-    host = hostname.lower()
-    if ":" in host:
-        host = "[" + host + "]"
-    return "https://" + host + (":" + str(port) if port and port != 443 else "")
-
-
-def configured_public_url():
-    override = frappe.db.get_single_value("Login Security Settings", "public_login_url")
-    return normalize_public_login_url(override) if override else frappe.conf.get("host_name") or ""
-
-
-
-def proxy_request_host(configured_host, loopback):
-    """Collapse duplicate public Hosts only from the local proxy, never mixed hosts."""
-    host = frappe.local.request.host
-    if loopback and configured_host and "," in host:
-        values = host.split(",")
-        if all(value.strip() == configured_host for value in values):
-            return configured_host
-    return host
-
-
-def request_origin():
-    """Resolve HTTPS through a loopback proxy with an explicit upstream TLS contract."""
+def request_scheme():
+    """Honor HTTPS termination only from a loopback proxy for the configured host."""
     request = frappe.local.request
     if request.scheme == "https":
-        return "https", request.host
-    configured = urlsplit(configured_public_url())
+        return "https"
+    configured = urlsplit(frappe.conf.get("host_name") or "")
     try:
         loopback = ipaddress.ip_address(request.environ.get("REMOTE_ADDR", "")).is_loopback
     except ValueError:
         loopback = False
-    # Frappe's local proxy can rewrite Host to the selected site name. In that
-    # case require an explicit forwarded host matching the configured public URL.
-    site_host = getattr(frappe.local, "site", None)
-    proxy_host = proxy_request_host(configured.netloc, loopback)
-    forwarded_proto = request.headers.get("X-Forwarded-Proto")
-    # Managed hosting may replace the external scheme with its internal HTTP hop.
-    # This server-only opt-in asserts HTTPS is enforced before the loopback proxy.
-    # It never trusts a remote peer, a different host or malformed protocol lists.
-    upstream_https = (
-        frappe.conf.get("login_security_https_enforced_upstream") in (True, 1)
-        and forwarded_proto in (None, "http", "https")
-    )
     if (
         loopback
         and configured.scheme == "https"
-        and configured.netloc
-        and proxy_host in (configured.netloc, site_host)
-        and (forwarded_proto == "https" or upstream_https)
-        and request.headers.get("X-Forwarded-Host", proxy_host) == configured.netloc
+        and configured.netloc == request.host
+        and request.headers.get("X-Forwarded-Proto") == "https"
+        and request.headers.get("X-Forwarded-Host", request.host) == configured.netloc
     ):
-        return "https", configured.netloc
-    return request.scheme, request.host
-
-
-def request_scheme():
-    return request_origin()[0]
+        return "https"
+    return request.scheme
 
 
 def check_request():
@@ -118,8 +55,8 @@ def check_request():
         raise LoginSecurityError("request", "Invalid login request.")
     origin = request.headers.get("Origin") or request.headers.get("Referer")
     parsed = urlsplit(origin or "")
-    scheme, host = request_origin()
-    if parsed.scheme != scheme or parsed.netloc != host:
+    scheme = request_scheme()
+    if parsed.scheme != scheme or parsed.netloc != request.host:
         raise LoginSecurityError("origin", "Reload this page on the site's configured address and try again.")
     local_development = frappe.conf.get("developer_mode") and request.host.split(":")[0] in {
         "localhost",
