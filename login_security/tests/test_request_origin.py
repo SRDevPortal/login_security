@@ -9,11 +9,14 @@ from login_security.runtime import LoginSecurityError, check_request, request_sc
 
 class RequestOriginTests(unittest.TestCase):
     def setUp(self):
+        self.old_site = getattr(frappe.local, "site", None)
+        frappe.local.site = "sriaas.local"
         self.old_conf = getattr(frappe.local, "conf", None)
         self.old_request = getattr(frappe.local, "request", None)
         frappe.local.conf = frappe._dict(host_name="https://public.example", developer_mode=0)
 
     def tearDown(self):
+        frappe.local.site = self.old_site
         frappe.local.conf = self.old_conf
         frappe.local.request = self.old_request
 
@@ -77,3 +80,22 @@ class RequestOriginTests(unittest.TestCase):
         with self.assertRaises(LoginSecurityError) as error:
             check_request()
         self.assertEqual(error.exception.code, "https")
+
+    def test_site_host_rewrite_with_exact_forwarded_public_host(self):
+        self.request(host="sriaas.local", forwarded_host="public.example")
+        check_request()
+        self.assertEqual(request_scheme(), "https")
+
+    def test_site_host_rewrite_rejects_untrusted_or_mismatched_requests(self):
+        for args in (
+            {},
+            {"forwarded_host": "attacker.example"},
+            {"forwarded_host": "public.example", "peer": "192.0.2.5"},
+            {"forwarded_host": "public.example", "origin": "https://attacker.example"},
+            {"forwarded_host": "public.example", "forwarded": "http"},
+            {"forwarded_host": "public.example", "forwarded": "https,http"},
+        ):
+            with self.subTest(args=args):
+                self.request(host="sriaas.local", **args)
+                with self.assertRaises(LoginSecurityError):
+                    check_request()

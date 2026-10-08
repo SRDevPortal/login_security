@@ -28,25 +28,31 @@ def store():
     return ChallengeStore(Redis(connection_pool=frappe.cache.connection_pool), frappe.local.site, secret())
 
 
-def request_scheme():
-    """Honor HTTPS termination only from a loopback proxy for the configured host."""
+def request_origin():
+    """Recognize public HTTPS through a trusted loopback proxy."""
     request = frappe.local.request
     if request.scheme == "https":
-        return "https"
+        return "https", request.host
     configured = urlsplit(frappe.conf.get("host_name") or "")
     try:
         loopback = ipaddress.ip_address(request.environ.get("REMOTE_ADDR", "")).is_loopback
     except ValueError:
         loopback = False
+    site_host = getattr(frappe.local, "site", None)
     if (
         loopback
         and configured.scheme == "https"
-        and configured.netloc == request.host
+        and configured.netloc
+        and request.host in (configured.netloc, site_host)
         and request.headers.get("X-Forwarded-Proto") == "https"
         and request.headers.get("X-Forwarded-Host", request.host) == configured.netloc
     ):
-        return "https"
-    return request.scheme
+        return "https", configured.netloc
+    return request.scheme, request.host
+
+
+def request_scheme():
+    return request_origin()[0]
 
 
 def check_request():
@@ -55,8 +61,8 @@ def check_request():
         raise LoginSecurityError("request", "Invalid login request.")
     origin = request.headers.get("Origin") or request.headers.get("Referer")
     parsed = urlsplit(origin or "")
-    scheme = request_scheme()
-    if parsed.scheme != scheme or parsed.netloc != request.host:
+    scheme, host = request_origin()
+    if parsed.scheme != scheme or parsed.netloc != host:
         raise LoginSecurityError("origin", "Reload this page on the site's configured address and try again.")
     local_development = frappe.conf.get("developer_mode") and request.host.split(":")[0] in {
         "localhost",
