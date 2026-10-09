@@ -99,3 +99,36 @@ class RequestOriginTests(unittest.TestCase):
                 self.request(host="sriaas.local", **args)
                 with self.assertRaises(LoginSecurityError):
                     check_request()
+
+    def test_explicit_docker_proxy_ip(self):
+        frappe.local.conf.login_security_trusted_proxy_ips = ["172.19.0.2"]
+        self.request(peer="172.19.0.2")
+        check_request()
+        self.assertEqual(request_scheme(), "https")
+
+    def test_trusted_proxy_cannot_override_origin_host_or_protocol(self):
+        frappe.local.conf.login_security_trusted_proxy_ips = ["172.19.0.2"]
+        for args in (
+            {"origin": "https://attacker.example"},
+            {"host": "attacker.example"},
+            {"forwarded_host": "attacker.example"},
+            {"forwarded": "http"},
+            {"forwarded": "https,http"},
+        ):
+            with self.subTest(args=args):
+                self.request(peer="172.19.0.2", **args)
+                with self.assertRaises(LoginSecurityError):
+                    check_request()
+
+    def test_proxy_configuration_fails_closed(self):
+        for configured in ("172.19.0.2", ["*"], ["172.19.0.0/16"], ["nginx"], [None]):
+            with self.subTest(configured=configured):
+                frappe.local.conf.login_security_trusted_proxy_ips = configured
+                self.request(peer="172.19.0.2")
+                self.assertEqual(request_scheme(), "http")
+
+    def test_forwarded_for_does_not_establish_proxy_trust(self):
+        frappe.local.conf.login_security_trusted_proxy_ips = ["172.19.0.2"]
+        self.request(peer="192.0.2.5")
+        frappe.local.request.environ["HTTP_X_FORWARDED_FOR"] = "172.19.0.2"
+        self.assertEqual(request_scheme(), "http")

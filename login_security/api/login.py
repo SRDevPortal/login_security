@@ -6,7 +6,7 @@ import frappe
 from login_security import audit, policy, providers
 from login_security.crypto import new_code
 from login_security.enforcement import authorize
-from login_security.runtime import COOKIE, LoginSecurityError, binding, endpoint, request_scheme, store
+from login_security.runtime import COOKIE, LoginSecurityError, binding, check_request, endpoint, request_scheme, store
 
 
 @frappe.whitelist(allow_guest=True, methods=["GET"])
@@ -47,7 +47,7 @@ def deliver(storage, config, challenge_id, data, code):
 
 
 @frappe.whitelist(allow_guest=True, methods=["POST"])
-@endpoint
+@endpoint(check_origin=False)
 def start(usr=None, pwd=None):
     guest_only()
     if not isinstance(usr, str) or len(usr) > 320 or not isinstance(pwd, str) or len(pwd) > 512:
@@ -66,6 +66,16 @@ def start(usr=None, pwd=None):
     # Native login is performed by the original client handler, preserving native 2FA/reset flows.
     if not policy.covered(user, config):
         return {"status": "native_login"}
+    check_request()
+    return begin_challenge(manager, config)
+
+
+def begin_challenge(manager, config):
+    """Internal entry after native password and expiry checks; never whitelisted."""
+    user = manager.user
+    storage = store()
+    # No challenge or session is issued for uncovered users.
+    # Covered users must pass origin/HTTPS checks before delivery.
     policy.account_checks(manager)
     row = policy.enrollment(user)
     providers.validate_provider(config)

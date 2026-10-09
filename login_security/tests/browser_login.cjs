@@ -11,7 +11,7 @@ const html = `<!doctype html><html><body><main><section class="for-login">
   <button type="submit">Login</button></form></section></main><script>
   window.nativeCalls = []; window.notices = [];
   window.frappe = {csrf_token: "test", msgprint: value => window.notices.push(value)};
-  window.login = {call: args => window.nativeCalls.push(args)};
+  window.login = {call: args => window.nativeCalls.push(args), login_handlers: {200: data => window.nativeCalls.push({cmd:"login", response:data})}};
   document.querySelector("form").addEventListener("submit", event => {
     event.preventDefault(); window.nativeCalls.push({native: true});
   });
@@ -34,7 +34,8 @@ const html = `<!doctype html><html><body><main><section class="for-login">
       if (url.pathname === "/login-security.js") return route.fulfill({contentType: "text/javascript", body: script});
       if (url.pathname === "/login" || url.pathname === "/") return route.fulfill({contentType: "text/html", body: html});
       if (!url.pathname.startsWith("/api/")) return route.fulfill({contentType: "text/html", body: "Destination"});
-      const method = url.pathname.split(".").pop();
+      const nativeLogin = url.pathname === "/api/method/login";
+      const method = nativeLogin ? "start" : url.pathname.split(".").pop();
       const body = route.request().postDataJSON();
       calls.push({method, body, headers: route.request().headers()});
       let result;
@@ -48,7 +49,7 @@ const html = `<!doctype html><html><body><main><section class="for-login">
         status: "challenge", challenge_id: "test-challenge", destination: "WhatsApp ending 2671",
         expires_in: 300, resend_after: 0, delivery: "accepted"
       } : {status: "logged_in", home_page: "/app"};
-      return route.fulfill({contentType: "application/json", body: JSON.stringify({message: result})});
+      return route.fulfill({contentType: "application/json", body: JSON.stringify(nativeLogin ? (result.status === "native_login" ? {message:"Logged In",home_page:"/app"} : {login_security:result}) : {message: result})});
     });
     try {
       const configured = page.waitForResponse(response => response.url().endsWith(".configuration"));
@@ -56,7 +57,7 @@ const html = `<!doctype html><html><body><main><section class="for-login">
       if (!options.early) await configured;
       // Let the fetch JSON and chained capability handler settle before the user submits.
       await page.waitForTimeout(50);
-      await page.fill("#login_email", "staff@example.test");
+      await page.fill("#login_email", options.user || "staff@example.test");
       await page.fill("#login_password", "test-password");
       await page.click('button[type="submit"]');
       await test(page, calls);
@@ -96,6 +97,13 @@ const html = `<!doctype html><html><body><main><section class="for-login">
       assert.equal(calls.filter(call => call.method === "resend").length, 1);
       assert.equal(await page.inputValue("#login-security-code"), "");
     });
+    await scenario("Administrator keeps native login during configuration outage",
+      {user: "Administrator", configurationFailure: true}, async (page, calls) => {
+        await page.waitForFunction(() => window.nativeCalls.length === 1);
+        assert.equal(calls.filter(call => call.method === "start").length, 0);
+        assert.equal(await page.evaluate(() => window.nativeCalls[0].cmd), "login");
+        assert.equal(await page.locator(".login-security").count(), 0);
+      });
     await scenario("Disabled policy keeps native handler", {enabled: false}, async (page, calls) => {
       await page.waitForFunction(() => window.nativeCalls.length === 1);
       assert.equal(calls.filter(call => call.method === "start").length, 0);

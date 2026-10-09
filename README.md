@@ -205,3 +205,61 @@ phone suffix in Login Security workflows. Raw Login Security Enrollment records
 cannot be opened, printed, exported, or queried through generic HTTP APIs without
 full-number visibility. OTP delivery, enrollment verification, recovery codes,
 and internal policy checks continue to use the original phone value.
+
+
+## Native login and Docker HTTPS proxies
+
+Administrator delegates directly to native Frappe login, even if the public
+capability endpoint is unavailable. Frappe still checks its password.
+
+The legacy start endpoint remains for older assets and resolves the actual User's
+coverage; updated assets use native login. Uncovered users return to native login without issuing a session or
+challenge. Covered users pass origin/HTTPS checks before a code is sent. The
+existing on_login guard runs before session creation and blocks covered native
+or alternate login without internally generated verification proof.
+
+For Docker HTTPS termination, add the following site_config.json settings:
+
+~~~json
+{
+  "host_name": "https://YOUR_PUBLIC_DOMAIN",
+  "login_security_trusted_proxy_ips": ["ACTUAL_PROXY_IP"]
+}
+~~~
+
+Replace the placeholder with the immediate proxy's literal IPv4 or IPv6 address,
+not the backend container IP or browser IP. Wildcards, CIDRs, hostnames and
+X-Forwarded-For do not establish trust. Loopback remains supported. Unknown peers
+remain untrusted; HTTPS forwarding, configured host and browser origin must agree.
+If Host is rewritten to the site name, supply the public X-Forwarded-Host.
+
+No Gunicorn/Supervisor configuration changes are needed if correct HTTPS headers
+are already forwarded. An explicit site trust setting and stable proxy address
+are still required. The login_security_https_enforced_upstream flag is not used.
+Machine API-token policy is unchanged.
+
+Deploy the updated app, reload managed Python processes, clear site cache, and
+reload the login page. Test covered users, uncovered users, Administrator,
+foreign origins and native-login bypass denial on staging before rollout.
+
+
+## Native login adapter (Frappe v15)
+
+The browser now submits passwords to /api/method/login. The app wraps native
+LoginManager.login and its password-expiry boundary at runtime. Native password
+validation, disabled-password policy, expiry redirects, and uncovered/native-2FA
+flows remain in the original method. Only covered, non-expired users are stopped
+before native session creation and receive a login_security challenge response.
+Verification finishes through native post_login; the existing guard remains.
+
+No Frappe source files are modified. This is a version-specific runtime adapter,
+not an upstream-supported provider hook. Validate upgrades against staging.
+The public configuration request imports the adapter before browser login.
+If native login is reached before app discovery imports it, the on_login guard
+still denies covered session creation; it must not grant password-only access.
+Sites without the app continue through native login.
+
+Existing HTTPS/origin checks and trusted proxy configuration still apply.
+This change does not remove transport-security requirements. Restart Python
+processes and reload assets after deployment; no live rollout is performed by
+editing the local checkout.

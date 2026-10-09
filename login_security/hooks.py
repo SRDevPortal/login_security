@@ -9,7 +9,7 @@ app_license = "mit"
 # Resolve the sibling app locally: Frappe v15 looks up bare custom names on GitHub.
 required_apps = ["frappe", str(_Path(__file__).resolve().parents[2] / "wa_chat_hub")]
 
-web_include_js = ["/assets/login_security/js/login.js?v=20260929-4"]
+web_include_js = ["/assets/login_security/js/login.js?v=20261009-2"]
 on_login = "login_security.enforcement.require_verification"
 on_session_creation = "login_security.enforcement.mark_session"
 after_request = "login_security.runtime.no_store_response"

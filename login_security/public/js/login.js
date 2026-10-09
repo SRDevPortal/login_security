@@ -162,9 +162,32 @@
     busy = true;
     if (button) button.disabled = true;
     try {
+      // Preserve emergency access if configuration loading fails.
+      if (usr.toLowerCase() === "administrator") {
+        window.login.call({cmd: "login", usr, pwd}, null, "/login");
+        return;
+      }
       const config = await configurationReady;
       if (!config) throw new Error("Unable to load login verification settings. Reload the page and try again.");
-      const result = config.enabled ? await api("start", {usr, pwd}) : {status: "native_login"};
+      if (!config.enabled) {
+        window.login.call({cmd: "login", usr, pwd}, null, "/login");
+        return;
+      }
+      const response = await fetch("/api/method/login", {
+        method: "POST", credentials: "same-origin", cache: "no-store",
+        headers: {"Content-Type": "application/json", "X-Login-Security": "1",
+          "X-Frappe-CSRF-Token": window.frappe?.csrf_token || ""},
+        body: JSON.stringify({usr, pwd}),
+      });
+      const data = await response.json();
+      if (!data.login_security) {
+        const handler = window.login.login_handlers?.[response.status];
+        if (!handler) throw new Error("Native login did not complete. Reload and try again.");
+        handler(data);
+        return;
+      }
+      const result = data.login_security;
+      if (result.status === "error") throw new Error(result.message);
       if (result.status === "native_login") {
         window.login.call({cmd: "login", usr, pwd}, null, "/login");
       } else {

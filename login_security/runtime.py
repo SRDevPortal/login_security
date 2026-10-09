@@ -28,19 +28,35 @@ def store():
     return ChallengeStore(Redis(connection_pool=frappe.cache.connection_pool), frappe.local.site, secret())
 
 
+def trusted_proxy(peer):
+    """Trust the immediate peer, never client-supplied forwarding chains."""
+    try:
+        address = ipaddress.ip_address(peer)
+    except (ValueError, TypeError):
+        return False
+    if address.is_loopback:
+        return True
+    configured = frappe.conf.get("login_security_trusted_proxy_ips") or []
+    if not isinstance(configured, (list, tuple)):
+        return False
+    for value in configured:
+        try:
+            if address == ipaddress.ip_address(value):
+                return True
+        except (ValueError, TypeError):
+            continue
+    return False
+
+
 def request_origin():
-    """Recognize public HTTPS through a trusted loopback proxy."""
+    """Recognize public HTTPS through explicitly trusted proxies."""
     request = frappe.local.request
     if request.scheme == "https":
         return "https", request.host
     configured = urlsplit(frappe.conf.get("host_name") or "")
-    try:
-        loopback = ipaddress.ip_address(request.environ.get("REMOTE_ADDR", "")).is_loopback
-    except ValueError:
-        loopback = False
     site_host = getattr(frappe.local, "site", None)
     if (
-        loopback
+        trusted_proxy(request.environ.get("REMOTE_ADDR", ""))
         and configured.scheme == "https"
         and configured.netloc
         and request.host in (configured.netloc, site_host)
@@ -103,13 +119,17 @@ def challenge_error_response(exc):
     return result
 
 
-def endpoint(fn):
+def endpoint(fn=None, *, check_origin=True):
     """Never allow a secret-bearing exception/response to reach Frappe error snapshots."""
+
+    if fn is None:
+        return functools.partial(endpoint, check_origin=check_origin)
 
     @functools.wraps(fn)
     def wrapped(*args, **kwargs):
         try:
-            check_request()
+            if check_origin:
+                check_request()
             return fn(*args, **kwargs)
         except ChallengeError as exc:
             frappe.db.rollback()
